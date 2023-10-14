@@ -1,0 +1,11 @@
+{
+  "name": "usb-reader",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "open": "^9.1.0",
+    "usb": "^2.11.0"
+  }
+}
