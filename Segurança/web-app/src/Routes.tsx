@@ -30,7 +30,7 @@ const AppRoutes = () => {
             path="/"
           />
           <Route element={<Error />} path="/error" />
-          <Route element={<Home />} path="**" />
+          <Route element={<Home />} path="/*" />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
