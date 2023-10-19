@@ -62,7 +62,8 @@ async function readDir(disks) {
               const token = jwt.sign({
                 fingerprint: certData.fingerprint,
                 name,
-                organization
+                organization,
+                exp: new Date(new Date().getTime() + 5 * 60000) / 1000
               }, "trabalho")
 
               const url = `http://localhost:3000?token=${token}`;
@@ -84,7 +85,8 @@ async function readDir(disks) {
 
 
 async function verifyAuthorization(fingerprint) {
-  const authorizeds = (await fs.readFileSync('autorizados.txt', 'utf-8')).split('\n');
+  const response = await fetch("https://raw.githubusercontent.com/matheuswr89/trabalho-seguranca/master/Seguran%C3%A7a/autorizados.json");
+  const authorizeds = await response.json()
 
   return authorizeds.some(auth => auth === fingerprint);
 }

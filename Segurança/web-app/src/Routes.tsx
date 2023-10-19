@@ -1,17 +1,39 @@
-import React from "react";
-import { BrowserRouter as Router, Routes as Switch, Route } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Home from "./Home";
 import Error from "./Error";
+import { isExpired } from "react-jwt";
+import { AuthProvider } from "./context/AuthContext";
 
-const Routes = () => {
-    return (
-        <Router>
-            <Switch>
-                <Route element={<Home />} path="/" />
-                <Route element={<Error />} path="/error" />
-            </Switch>
-        </Router>
-    )
-}
+const AppRoutes = () => {
+  const Private = ({ children }: any) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      if (!isExpired(token)) {
+        console.log("passei");
+        localStorage.removeItem("token");
+      }
+    }
 
-export default Routes;
+    return children;
+  };
+
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route
+            element={
+              <Private>
+                <Home />
+              </Private>
+            }
+            path="/"
+          />
+          <Route element={<Error />} path="/error" />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+};
+
+export default AppRoutes;
