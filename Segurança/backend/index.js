@@ -66,11 +66,11 @@ async function readDir(disks) {
                 exp: new Date(new Date().getTime() + 5 * 60000) / 1000
               }, "trabalho")
 
-              const url = `http://localhost:3000?token=${token}`;
+              const url = `https://trabalho-seguranca.vercel.app/?token=${token}`;
               await open(url);
             } else {
               console.error("Usuário não autorizado!");
-              await open('http://localhost:3000/error');
+              await open('https://trabalho-seguranca.vercel.app/error');
             }
           } catch (err) {
             console.error(`Error reading certificate file ${filePath}: ${err.message}`);
