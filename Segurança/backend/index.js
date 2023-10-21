@@ -1,10 +1,10 @@
 import { execSync } from "child_process";
+import * as crypto from "crypto";
 import * as fs from "fs";
+import jwt from "jsonwebtoken";
 import open from "open";
 import * as os from "os";
 import { usb } from "usb";
-import * as crypto from "crypto"
-import jwt from "jsonwebtoken"
 
 function getWindowsDisks() {
   const lines = execSync("wmic logicaldisk where drivetype=2 get DeviceID")
@@ -25,61 +25,56 @@ function getWindowsDisks() {
 }
 
 function getUnixDisks() {
-  const lines = execSync('lsblk -pl | awk \'$3 == "1" && $6 == "part"\'').toString().split("\n");
-  lines.pop()
-  const disks = [];
-  lines.forEach((line) => {
-    const splitLine = line.split(/\s+/);
-    const disk = splitLine[0];
-    const mountPoint = splitLine[6];
-    disks.push({ disk, mountPoint });
-  });
-  console.log(disks)
-  return disks;
+  const dmesgResult = execSync("dmesg --notime | grep sd").toString().split("\n");
+  let splitResult = dmesgResult[dmesgResult.length - 4].trim().split(":")
+  if (splitResult.length !== 2) splitResult = dmesgResult[dmesgResult.length - 3].trim().split(":")
+  const lines = execSync(`lsblk -pl | grep${splitResult[1]}`).toString().replace("\n", "").split(/^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(.+)$/);
+
+  return lines[7];
 }
 
-async function readDir(disks) {
-  for (let disk of disks) {
-    try {
-      const files = await fs.readdirSync(disk.mountPoint, { withFileTypes: true });
+async function readDir(disk) {
+  try {
+    const files = await fs.readdirSync(disk, { withFileTypes: true });
+    const pemFile = files.filter(file => file.name.includes('.pem'))[0];
 
-      for (let file of files) {
-        if (file.name.includes('.pem')) {
-          const separator = os.platform() === 'win32' ? '\\' : '/';
-          const filePath = `${disk.mountPoint}${separator}${file.name}`;
+    if (pemFile) {
+      const separator = os.platform() === 'win32' ? '\\' : '/';
+      const filePath = `${disk}${separator}${pemFile.name}`;
 
-          try {
-            const certContent = await fs.readFileSync(filePath);
-            const certData = new crypto.X509Certificate(certContent);
-            const authorized = await verifyAuthorization(certData.fingerprint);
+      try {
+        const certContent = await fs.readFileSync(filePath);
+        const certData = new crypto.X509Certificate(certContent);
+        const authorized = await verifyAuthorization(certData.fingerprint);
 
-            if (authorized) {
-              const issuerSplit = certData.issuer.split('\n');
-              const name = issuerSplit.find(line => line.startsWith('CN=')).split('=')[1];
+        if (authorized) {
+          const issuerSplit = certData.issuer.split('\n');
+          const name = issuerSplit.find(line => line.startsWith('CN=')).split('=')[1];
 
-              const organization = issuerSplit.find(line => line.startsWith('O=')).split('=')[1];
+          const organization = issuerSplit.find(line => line.startsWith('O=')).split('=')[1];
 
-              const token = jwt.sign({
-                fingerprint: certData.fingerprint,
-                name,
-                organization,
-                exp: new Date(new Date().getTime() + 5 * 60000) / 1000
-              }, "trabalho")
+          const token = jwt.sign({
+            fingerprint: certData.fingerprint,
+            name,
+            organization,
+            exp: new Date(new Date().getTime() + 5 * 60000) / 1000
+          }, "trabalho")
 
-              const url = `https://trabalho-seguranca.vercel.app/?token=${token}`;
-              await open(url);
-            } else {
-              console.error("Usuário não autorizado!");
-              await open('https://trabalho-seguranca.vercel.app/error');
-            }
-          } catch (err) {
-            console.error(`Error reading certificate file ${filePath}: ${err.message}`);
-          }
+          const url = `https://trabalho-seguranca.vercel.app/?token=${token}`;
+          await open(url);
+        } else {
+          console.error("Usuário não autorizado!");
+          await open('https://trabalho-seguranca.vercel.app/error');
         }
+      } catch (err) {
+        console.error(`Error reading certificate file ${filePath}: ${err.message}`);
       }
-    } catch (err) {
-      console.error(`Error reading directory ${disk.mountPoint}: ${err.message}`);
+    } else {
+      console.error('Nenhum certificado foi encontrado.');
     }
+
+  } catch (err) {
+    console.error(`Error reading directory ${disk}: ${err.message}`);
   }
 }
 
