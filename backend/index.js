@@ -1,10 +1,11 @@
 import { execSync } from "child_process";
 import * as crypto from "crypto";
 import * as fs from "fs";
-import jwt from "jsonwebtoken";
+import notifier from "node-notifier"
 import open from "open";
 import * as os from "os";
 import { usb } from "usb";
+import jsonwebtoken from "jsonwebtoken"
 
 function getWindowsDisks() {
   const lines = execSync("wmic logicaldisk where drivetype=2 get DeviceID")
@@ -42,48 +43,48 @@ async function readDir(disk) {
       const separator = os.platform() === 'win32' ? '\\' : '/';
       const filePath = `${disk}${separator}${pemFile.name}`;
 
-      try {
-        const certContent = await fs.readFileSync(filePath);
-        const certData = new crypto.X509Certificate(certContent);
-        const authorized = await verifyAuthorization(certData.fingerprint);
+      const certContent = await fs.readFileSync(filePath);
+      const encrypted = await encryptStringWithPrivateKey(certContent);
 
-        if (authorized) {
-          const issuerSplit = certData.issuer.split('\n');
-          const name = issuerSplit.find(line => line.startsWith('CN=')).split('=')[1];
-
-          const organization = issuerSplit.find(line => line.startsWith('O=')).split('=')[1];
-
-          const token = jwt.sign({
-            fingerprint: certData.fingerprint,
-            name,
-            organization,
-            exp: new Date(new Date().getTime() + 5 * 60000) / 1000
-          }, "trabalho")
-
-          const url = `https://trabalho-seguranca.vercel.app/?token=${token}`;
-          await open(url);
-        } else {
-          console.error("Usuário não autorizado!");
-          await open('https://trabalho-seguranca.vercel.app/error');
-        }
-      } catch (err) {
-        console.error(`Error reading certificate file ${filePath}: ${err.message}`);
+      if (encrypted) {
+        const url = `http://localhost:3000/?token=${encrypted}`;
+        await open(url);
+      } else {
+        notifier.notify({
+          title: 'Trabalho Segurança',
+          message: 'Erro ao gerar o texto criptografado.'
+        });
       }
     } else {
-      console.error('Nenhum certificado foi encontrado.');
+      notifier.notify({
+        title: 'Trabalho Segurança',
+        message: 'Nenhuma chave privada foi encontrada.'
+      });
     }
-
   } catch (err) {
-    console.error(`Error reading directory ${disk}: ${err.message}`);
+    notifier.notify({
+      title: 'Trabalho Segurança',
+      message: `Erro ao ler o disco "${disk}": ${err.message}`
+    });
   }
 }
 
+function encryptStringWithPrivateKey(privateKey) {
+  const token = jsonwebtoken.sign("Olá mundo", privateKey, {algorithm: "RS256"});
+  console.log(token)
+  return token;
+};
 
-async function verifyAuthorization(fingerprint) {
-  const response = await fetch("https://raw.githubusercontent.com/matheuswr89/trabalho-seguranca/master/Seguran%C3%A7a/autorizados.json");
-  const authorizeds = await response.json()
-
-  return authorizeds.some(auth => auth === fingerprint);
+function generateRandomString(length) {
+  let result = '';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const charactersLength = characters.length;
+  let counter = 0;
+  while (counter < length) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    counter += 1;
+  }
+  return result;
 }
 
 usb.on("attach", async function (device) {
