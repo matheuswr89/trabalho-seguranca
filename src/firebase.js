@@ -1,5 +1,5 @@
-import { initializeApp } from "firebase/app";
-import { collection, getDocs, getFirestore, query } from "firebase/firestore";
+const { initializeApp } = require("firebase/app");
+const { collection, getDocs, getFirestore, query } = require("firebase/firestore");
 
 const firebaseConfig = {
   apiKey: "AIzaSyDheFFkRQobJ86eBcokkUfVQqEYafBQRFY",
@@ -13,8 +13,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
 
-export async function getChaves() {
+async function getChaves() {
   const q = query(collection(firestore, "chaves"))
 
   return await (await getDocs(q)).docs;
 }
+
+module.exports = {
+  getChaves: getChaves,
+};

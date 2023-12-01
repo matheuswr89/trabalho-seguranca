@@ -1,3 +1,14 @@
-## Trabalho para a disciplian de Segurança
+# USB authentication with OpenSSL
+Simple authentication via USB devices with OpenSSL built in Electron.
 
-Este trabalho implica na autorização de acesso a um site por meio de um certificado digital instalado em um pendrive.
+## Installation
+
+```bash
+npm i
+```
+
+## Running
+
+```bash
+npm start
+```
