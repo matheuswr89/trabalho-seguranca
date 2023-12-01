@@ -73,6 +73,7 @@ function encryptStringWithPrivateKey(privateKey) {
 
 async function showDevices(window) {
     usb.on("attach", async function (device) {
+        window.webContents.send("devices", "Carregando...");
         await new Promise((resolve) => setTimeout(resolve, 3000));
         const disks = getUnixDisks();
         readDir(disks, window);
